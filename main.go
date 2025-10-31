@@ -5,7 +5,42 @@ import (
 	"os"
 	"log"
 	"bytes"
+	"io"
 )
+
+func getLinesChannel(f io.ReadCloser, bytesToRead int) <- chan string {
+	ch := make(chan string)
+
+	go func() {
+		line := ""
+		for {
+			buf := make([]byte, bytesToRead)
+
+			n, err := f.Read(buf)
+			if err != nil {
+				break
+			}
+
+			buf = buf[:n]
+			if i := bytes.IndexByte(buf, '\n'); i != -1 {
+				line += string(buf[:i])
+				ch <- line
+				buf = buf[i+1:]
+				line = ""
+			}
+
+			line += string(buf)
+		}
+
+		if len(line) > 0 {
+			ch <- line
+		}
+
+		close(ch)
+	}()
+
+	return ch
+}
 
 func main() {
 	filePath := "messages.txt"
@@ -17,27 +52,8 @@ func main() {
 	}
 	defer file.Close()
 	
-	line := ""
-	for {
-		buf := make([]byte, bytesToRead)
-
-		n, err := file.Read(buf)
-		if err != nil {
-			break
-		}
-
-		buf = buf[:n]
-		if i := bytes.IndexByte(buf, '\n'); i != -1 {
-			line += string(buf[:i])
-			buf = buf[i+1:]
-			fmt.Printf("read: %s\n", line)
-			line = ""
-		}
-
-		line += string(buf)
-	}
-
-	if len(line) > 0 {
+	stream := getLinesChannel(file, bytesToRead)
+	for line := range stream {
 		fmt.Printf("read: %s\n", line)
 	}
 }

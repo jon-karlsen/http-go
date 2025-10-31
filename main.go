@@ -1,61 +1,66 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"log"
-	"bytes"
-	"io"
+        "fmt"
+        "log"
+        "bytes"
+        "net"
 )
 
-func getLinesChannel(f io.ReadCloser, bytesToRead int) <- chan string {
-	ch := make(chan string)
+func handleConn(conn net.Conn, bytesToRead int) {
+        defer conn.Close()
 
-	go func() {
-		line := ""
-		for {
-			buf := make([]byte, bytesToRead)
+        line := ""
+        for {
+                buf := make([]byte, bytesToRead)
 
-			n, err := f.Read(buf)
-			if err != nil {
-				break
-			}
+                n, err := conn.Read(buf)
+                if err != nil {
+                        fmt.Printf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
+                        return
+                }
 
-			buf = buf[:n]
-			if i := bytes.IndexByte(buf, '\n'); i != -1 {
-				line += string(buf[:i])
-				ch <- line
-				buf = buf[i+1:]
-				line = ""
-			}
+                buf = buf[:n]
+                if i := bytes.IndexByte(buf, '\n'); i != -1 {
+                        line += string(buf[:i])
+                        fmt.Printf("read: %s\n", line)
+                        buf = buf[i+1:]
+                        line = ""
+                }
 
-			line += string(buf)
-		}
+                line += string(buf)
+        }
 
-		if len(line) > 0 {
-			ch <- line
-		}
-
-		close(ch)
-	}()
-
-	return ch
+        if len(line) > 0 {
+                fmt.Printf("read: %s\n", line)
+        }
+        return
 }
 
 func main() {
-	filePath := "messages.txt"
-	bytesToRead := 8
+        bytesToRead := 8
+        port := ":42069"
 
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
-	}
-	defer file.Close()
-	
-	stream := getLinesChannel(file, bytesToRead)
-	for line := range stream {
-		fmt.Printf("read: %s\n", line)
-	}
+        listener, err := net.Listen("tcp", port)
+        if err != nil {
+                log.Fatalf("Failed to create TCP listener: %v", err)
+        }
+        defer listener.Close()
+
+        for {
+                conn, err := listener.Accept()
+                if err != nil {
+                        fmt.Printf("Failed to create accept connection: %v\n", err)
+                        continue
+                }
+
+                go handleConn(conn, bytesToRead)
+        }
+
+        // stream := getLinesChannel(file, bytesToRead)
+        // for line := range stream {
+        //         fmt.Printf("read: %s\n", line)
+        // }
 }
 //
 // Create a string variable to hold the contents of the "current line" of the file. It needs to persist between reads (loop iterations).

@@ -23,7 +23,7 @@ func handleConn(conn net.Conn, bytesToRead int) {
                 buf = buf[:n]
                 if i := bytes.IndexByte(buf, '\n'); i != -1 {
                         line += string(buf[:i])
-                        fmt.Printf("read: %s\n", line)
+                        fmt.Printf("%s\n", line)
                         buf = buf[i+1:]
                         line = ""
                 }

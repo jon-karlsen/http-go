@@ -20,6 +20,9 @@ func handleConn(conn net.Conn, bytesToRead int) <- chan string {
                         n, err := conn.Read(buf)
                         if err != nil {
                                 //out <- fmt.Sprintf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
+                                if line != "" {
+                                        out <- line
+                                }
                                 close(out)
                                 break
                         }

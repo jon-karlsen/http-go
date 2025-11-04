@@ -7,29 +7,32 @@ import (
         "net"
 )
 
-func handleConn(conn net.Conn, bytesToRead int) {
-        defer conn.Close()
+func handleConn(conn net.Conn, bytesToRead int) <- chan string {
+        out := make(chan string, 1)
 
-        line := ""
-        for {
-                buf := make([]byte, bytesToRead)
+        go func() {
+                line := ""
+                for {
+                        buf := make([]byte, bytesToRead)
 
-                n, err := conn.Read(buf)
-                if err != nil {
-                        fmt.Printf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
-                        return
+                        n, err := conn.Read(buf)
+                        if err != nil {
+                                out <- fmt.Sprintf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
+                        }
+
+                        buf = buf[:n]
+                        if i := bytes.IndexByte(buf, '\n'); i != -1 {
+                                line += string(buf[:i])
+                                out <- fmt.Sprintf("%s\n", line)
+                                buf = buf[i+1:]
+                                line = ""
+                        }
+
+                        line += string(buf)
                 }
+        }()
 
-                buf = buf[:n]
-                if i := bytes.IndexByte(buf, '\n'); i != -1 {
-                        line += string(buf[:i])
-                        fmt.Printf("%s\n", line)
-                        buf = buf[i+1:]
-                        line = ""
-                }
-
-                line += string(buf)
-        }
+        return out
 }
 
 func main() {

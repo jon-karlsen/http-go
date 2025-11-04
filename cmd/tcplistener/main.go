@@ -11,13 +11,17 @@ func handleConn(conn net.Conn, bytesToRead int) <- chan string {
         out := make(chan string, 1)
 
         go func() {
+                defer conn.Close()
+
                 line := ""
                 for {
                         buf := make([]byte, bytesToRead)
 
                         n, err := conn.Read(buf)
                         if err != nil {
-                                out <- fmt.Sprintf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
+                                //out <- fmt.Sprintf("Connection closed from %s: %v\n", conn.RemoteAddr().String(), err)
+                                close(out)
+                                break
                         }
 
                         buf = buf[:n]
@@ -52,6 +56,9 @@ func main() {
                         continue
                 }
 
-                go handleConn(conn, bytesToRead)
+                out := handleConn(conn, bytesToRead)
+                for line := range(out) {
+                        fmt.Print(line)
+                }
         }
 }
